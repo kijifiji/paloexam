@@ -178,12 +178,40 @@
 
     // Load data
     fetch('questions.json')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             allQuestions = data;
+            console.log("Loaded " + allQuestions.length + " questions.");
+        })
+        .catch(error => {
+            console.error('Error loading questions:', error);
+            alert("Error: Could not load questions. If you are opening this file directly from your computer, your browser may block it for security reasons. \n\nPlease use a local web server or upload to GitHub Pages as recommended in the README.");
+            document.getElementById('menu-screen').innerHTML = `
+                <div style="color: var(--error); padding: 20px; border: 2px solid var(--error); border-radius: 8px;">
+                    <h3>⚠️ Loading Error</h3>
+                    <p>Could not load <strong>questions.json</strong>.</p>
+                    <p>This usually happens because modern browsers block local file loading (CORS) when opening HTML files directly.</p>
+                    <hr>
+                    <h4>How to fix:</h4>
+                    <ol>
+                        <li>Use a local web server (run <code>python -m http.server</code> in the folder).</li>
+                        <li>Or, upload your files to <strong>GitHub Pages</strong>.</li>
+                        <li>Or, use a browser that allows local file access.</li>
+                    </ol>
+                </div>
+            `;
         });
 
     function startExam(start, end) {
+        if (allQuestions.length === 0) {
+            alert("Questions are still loading or failed to load. Please check the error message on the screen.");
+            return;
+        }
         if (start === 'random') {
             currentQuestions = [...allQuestions].sort(() => 0.5 - Math.random()).slice(0, 60);
         } else if (start === 'all') {
