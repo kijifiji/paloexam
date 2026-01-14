@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palo Alto NGFW Exam Prep</title>
+    <style>
+        :root {
+            --primary: #fa4616;
+            --bg: #f5f7f9;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --success: #27ae60;
+            --error: #e74c3c;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        header {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 800px;
+            width: 90%;
+            margin: 20px auto;
+        }
+        .card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        button {
+            background-color: white;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 10px;
+            border-color: #ddd;
+            color: var(--text);
+            font-weight: normal;
+        }
+        .option-btn.correct {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+        .option-btn.incorrect {
+            background-color: var(--error);
+            color: white;
+            border-color: var(--error);
+        }
+        #explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #eef2f7;
+            border-radius: 8px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .hidden { display: none; }
+        .result-pass { color: var(--success); font-weight: bold; font-size: 24px; }
+        .result-fail { color: var(--error); font-weight: bold; font-size: 24px; }
+        .review-item {
+            border-left: 4px solid var(--error);
+            padding-left: 15px;
+            margin-bottom: 25px;
+            background: #fffafa;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Palo Alto NGFW Exam Simulator</h1>
+</header>
+
+<div class="container">
+    <!-- Menu Screen -->
+    <div id="menu-screen" class="card">
+        <h2>Select Exam Mode</h2>
+        <div class="menu-grid">
+            <button onclick="startExam(0, 60)">Group 1 (1-60)</button>
+            <button onclick="startExam(60, 120)">Group 2 (61-120)</button>
+            <button onclick="startExam(120, 180)">Group 3 (121-180)</button>
+            <button onclick="startExam(180, 240)">Group 4 (181-240)</button>
+            <button onclick="startExam(240, 300)">Group 5 (241-300)</button>
+            <button onclick="startExam('random')">Random 60</button>
+            <button onclick="startExam('all')" style="grid-column: span 2;">Full Marathon (300)</button>
+        </div>
+    </div>
+
+    <!-- Exam Screen -->
+    <div id="exam-screen" class="hidden">
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        <div class="card">
+            <div id="domain-label" style="font-size: 14px; color: #7f8c8d; margin-bottom: 5px;"></div>
+            <h3 id="question-text"></h3>
+            <div id="options-container"></div>
+            <div id="explanation">
+                <strong id="feedback-text"></strong><br>
+                <span id="explanation-text"></span>
+                <br><br>
+                <button onclick="nextQuestion()" style="width: 100%;">Next Question</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="hidden">
+        <div class="card" style="text-align: center;">
+            <h2>Exam Results</h2>
+            <div id="score-text" style="font-size: 48px; margin: 20px 0;"></div>
+            <div id="pass-fail-text"></div>
+            <button onclick="location.reload()" style="margin-top: 20px;">Return to Menu</button>
+        </div>
+        <div id="review-container" class="card">
+            <h3>Review Wrong Answers</h3>
+            <div id="review-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allQuestions = [];
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let wrongAnswers = [];
+    let answered = false;
+
+    // Load data
+    fetch('questions.json')
+        .then(response => response.json())
+        .then(data => {
+            allQuestions = data;
+        });
+
+    function startExam(start, end) {
+        if (start === 'random') {
+            currentQuestions = [...allQuestions].sort(() => 0.5 - Math.random()).slice(0, 60);
+        } else if (start === 'all') {
+            currentQuestions = [...allQuestions].sort(() => 0.5 - Math.random());
+        } else {
+            currentQuestions = allQuestions.slice(start, end);
+        }
+        
+        currentIndex = 0;
+        score = 0;
+        wrongAnswers = [];
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('exam-screen').classList.remove('hidden');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        answered = false;
+        const q = currentQuestions[currentIndex];
+        document.getElementById('progress-fill').style.width = ((currentIndex / currentQuestions.length) * 100) + '%';
+        document.getElementById('domain-label').innerText = `Question ${currentIndex + 1} of ${currentQuestions.length} | ${q.domain}`;
+        document.getElementById('question-text').innerText = q.question;
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        document.getElementById('explanation').style.display = 'none';
+
+        for (let key in q.options) {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = `${key.toUpperCase()}) ${q.options[key]}`;
+            btn.onclick = () => selectOption(key, btn);
+            container.appendChild(btn);
+        }
+    }
+
+    function selectOption(key, btn) {
+        if (answered) return;
+        answered = true;
+        const q = currentQuestions[currentIndex];
+        const buttons = document.querySelectorAll('.option-btn');
+        
+        if (key === q.answer) {
+            btn.classList.add('correct');
+            document.getElementById('feedback-text').innerText = 'CORRECT! ✅';
+            document.getElementById('feedback-text').style.color = 'var(--success)';
+            score++;
+        } else {
+            btn.classList.add('incorrect');
+            document.getElementById('feedback-text').innerText = 'INCORRECT ❌';
+            document.getElementById('feedback-text').style.color = 'var(--error)';
+            
+            // Highlight correct one
+            buttons.forEach(b => {
+                if (b.innerText.startsWith(q.answer.toUpperCase() + ')')) {
+                    b.classList.add('correct');
+                }
+            });
+
+            wrongAnswers.push({
+                question: q.question,
+                options: q.options,
+                userAnswer: key,
+                correctAnswer: q.answer,
+                explanation: q.explanation
+            });
+        }
+
+        document.getElementById('explanation-text').innerText = q.explanation;
+        document.getElementById('explanation').style.display = 'block';
+    }
+
+    function nextQuestion() {
+        currentIndex++;
+        if (currentIndex < currentQuestions.length) {
+            showQuestion();
+        } else {
+            showResults();
+        }
+    }
+
+    function showResults() {
+        document.getElementById('exam-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        
+        const percent = (score / currentQuestions.length) * 100;
+        document.getElementById('score-text').innerText = `${score} / ${currentQuestions.length} (${percent.toFixed(1)}%)`;
+        
+        const pf = document.getElementById('pass-fail-text');
+        if (percent >= 70) {
+            pf.innerHTML = '<span class="result-pass">Result: PASS! 🎓</span>';
+        } else {
+            pf.innerHTML = '<span class="result-fail">Result: FAIL. Keep studying! 📚</span>';
+        }
+
+        const reviewList = document.getElementById('review-list');
+        reviewList.innerHTML = '';
+        if (wrongAnswers.length === 0) {
+            document.getElementById('review-container').classList.add('hidden');
+        } else {
+            wrongAnswers.forEach((wa, i) => {
+                const div = document.createElement('div');
+                div.className = 'review-item';
+                div.innerHTML = `
+                    <strong>${i+1}. ${wa.question}</strong><br>
+                    <span style="color: var(--error)">Your answer: ${wa.userAnswer.toUpperCase()}) ${wa.options[wa.userAnswer]}</span><br>
+                    <span style="color: var(--success)">Correct answer: ${wa.correctAnswer.toUpperCase()}) ${wa.options[wa.correctAnswer]}</span><br>
+                    <p><em>Explanation: ${wa.explanation}</em></p>
+                `;
+                reviewList.appendChild(div);
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
