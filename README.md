@@ -24,9 +24,19 @@ This project provides a comprehensive simulation environment for modern Palo Alt
 1. You can now run this as a web application!
 2. Simply open `index.html` in any web browser.
 3. If you want to use it on your iPad:
-   - Option A: Upload the files to a GitHub repository and use GitHub Pages.
-   - Option B: Use a "Web Server" app from the App Store to host these files locally.
-   - Option C: Transfer the `index.html` and `questions.json` files to your iPad and open `index.html` using a browser that supports local file access (like Safari from the Files app).
+   - **Option A: GitHub Pages (Recommended)**
+     1. Upload the files to a GitHub repository.
+     2. Go to Settings -> Pages.
+     3. Select the branch (usually `main`) and folder (`/root`), then click Save.
+     4. Wait a minute and your exam will be live at `https://yourusername.github.io/paloexam/`.
+   - **Option B: Local Web Server app**
+     - Use a "Web Server" app from the App Store to host these files locally.
+   - **Option C: Direct Transfer (AirDrop/Files)**
+     - Transfer both `index.html` and `questions.json` to your iPad.
+     - Open `index.html`. You will see **"iPad / Mobile Instructions"** on the screen.
+     - Tap the **"Choose File"** button and select the `questions.json` file you just transferred.
+     - The exam menu will appear instantly once the file is selected.
+     - **Note**: The app will save the questions on your device, so you only need to select the file once. If you need to refresh the questions, you can clear your browser cache or open the page with `index.html?debug=1`.
 
 ## New Features
 - **One Question at a Time**: Better focus and clean UI.

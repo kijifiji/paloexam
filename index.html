@@ -177,35 +177,118 @@
     let answered = false;
 
     // Load data
-    fetch('questions.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            allQuestions = data;
-            console.log("Loaded " + allQuestions.length + " questions.");
-        })
-        .catch(error => {
-            console.error('Error loading questions:', error);
-            alert("Error: Could not load questions. If you are opening this file directly from your computer, your browser may block it for security reasons. \n\nPlease use a local web server or upload to GitHub Pages as recommended in the README.");
-            document.getElementById('menu-screen').innerHTML = `
-                <div style="color: var(--error); padding: 20px; border: 2px solid var(--error); border-radius: 8px;">
-                    <h3>⚠️ Loading Error</h3>
-                    <p>Could not load <strong>questions.json</strong>.</p>
-                    <p>This usually happens because modern browsers block local file loading (CORS) when opening HTML files directly.</p>
-                    <hr>
-                    <h4>How to fix:</h4>
-                    <ol>
-                        <li>Use a local web server (run <code>python -m http.server</code> in the folder).</li>
-                        <li>Or, upload your files to <strong>GitHub Pages</strong>.</li>
-                        <li>Or, use a browser that allows local file access.</li>
-                    </ol>
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Try to load from localStorage first
+    const cachedData = localStorage.getItem('palo_questions');
+    if (cachedData) {
+        try {
+            allQuestions = JSON.parse(cachedData);
+            console.log("Loaded " + allQuestions.length + " questions from localStorage.");
+        } catch (e) {
+            console.error("Error parsing cached data", e);
+            localStorage.removeItem('palo_questions');
+        }
+    }
+
+    if (allQuestions.length > 0 && !urlParams.has('debug')) {
+        // Data already loaded from cache
+        console.log("Using cached questions.");
+    } else if (urlParams.has('debug')) {
+        console.log("Debug mode: Force manual upload UI");
+        setTimeout(showManualUploadUI, 100);
+    } else {
+        console.log("Attempting to fetch questions.json...");
+        fetch('questions.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                allQuestions = data;
+                console.log("Loaded " + allQuestions.length + " questions.");
+                // Cache it for next time
+                localStorage.setItem('palo_questions', JSON.stringify(data));
+            })
+            .catch(error => {
+                console.error('Error loading questions:', error);
+                if (allQuestions.length === 0) {
+                    showManualUploadUI();
+                }
+            });
+    }
+
+    function showManualUploadUI() {
+        document.getElementById('menu-screen').innerHTML = `
+            <div id="upload-container" style="padding: 20px; border: 2px solid #3498db; border-radius: 8px; background-color: #ebf5fb;">
+                <h3 style="color: #2980b9; margin-top: 0;">📱 iPad / Mobile Instructions</h3>
+                <p>To run this simulation on your device, you need to load the question database.</p>
+                <ol style="text-align: left; line-height: 1.6;">
+                    <li>If you AirDropped or copied both <strong>index.html</strong> and <strong>questions.json</strong> to your device:</li>
+                    <li>Tap the button below and select the <strong>questions.json</strong> file from your Files app.</li>
+                </ol>
+                <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <label for="file-input" style="display: block; margin-bottom: 10px; font-weight: bold; color: var(--primary);">Step 1: Select Database File</label>
+                    <input type="file" id="file-input" accept=".json" style="width: 100%; font-size: 16px;">
+                    <div id="upload-status" style="margin-top: 10px; font-weight: bold;"></div>
                 </div>
-            `;
-        });
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #bdc3c7;">
+                <p style="font-size: 14px; color: #7f8c8d;"><strong>Technical Note:</strong> Browsers prevent automatic loading of local files for security. Manually selecting the file bypasses this restriction. Once loaded, it will be saved on this device.</p>
+            </div>
+        `;
+        document.getElementById('file-input').addEventListener('change', handleFileUpload);
+    }
+
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const status = document.getElementById('upload-status');
+        status.innerText = "Processing...";
+        status.style.color = "orange";
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (Array.isArray(data) && data.length > 0) {
+                    allQuestions = data;
+                    localStorage.setItem('palo_questions', e.target.result);
+                    status.innerText = "Success! Loading menu...";
+                    status.style.color = "green";
+                    setTimeout(renderMenu, 1000);
+                } else {
+                    throw new Error("Invalid question format");
+                }
+            } catch (err) {
+                status.innerText = "Error: " + err.message;
+                status.style.color = "red";
+                alert("Error parsing JSON file: " + err.message);
+            }
+        };
+        reader.onerror = function() {
+            status.innerText = "Error reading file";
+            status.style.color = "red";
+        };
+        reader.readAsText(file);
+    }
+
+    function renderMenu() {
+        document.getElementById('menu-screen').innerHTML = `
+            <h2>Select Exam Mode</h2>
+            <div class="menu-grid">
+                <button onclick="startExam(0, 60)">Group 1 (1-60)</button>
+                <button onclick="startExam(60, 120)">Group 2 (61-120)</button>
+                <button onclick="startExam(120, 180)">Group 3 (121-180)</button>
+                <button onclick="startExam(180, 240)">Group 4 (181-240)</button>
+                <button onclick="startExam(240, 300)">Group 5 (241-300)</button>
+                <button onclick="startExam('random')">Random 60</button>
+                <button onclick="startExam('all')" style="grid-column: span 2;">Full Marathon (300)</button>
+            </div>
+        `;
+    }
 
     function startExam(start, end) {
         if (allQuestions.length === 0) {
